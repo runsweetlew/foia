@@ -156,6 +156,8 @@ model Meeting {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  search_vector   Unsupported("tsvector")?
+
   @@unique([entityId, sourceId])
   @@index([entityId])
   @@index([meetingDate])
@@ -203,4 +205,15 @@ model Document {
   @@unique([entityId, sourceUrl])
   @@index([entityId])
   @@index([type])
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  key         String    @unique
+  name        String
+  isActive    Boolean   @default(true)
+  rateLimit   Int       @default(100)
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }

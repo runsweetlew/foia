@@ -7,10 +7,31 @@ const JWT_SECRET = new TextEncoder().encode(
 const COOKIE_NAME = "foia_session";
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Public API v1: early reject if missing API key (docs are public)
+  if (pathname.startsWith("/api/v1/")) {
+    if (
+      pathname === "/api/v1/docs" ||
+      pathname === "/api/v1/openapi.json"
+    ) {
+      return NextResponse.next();
+    }
+    const apiKey = request.headers.get("x-api-key");
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "Missing API key. Provide an X-API-Key header." },
+        { status: 401 }
+      );
+    }
+    return NextResponse.next();
+  }
+
+  // Admin settings routes: JWT auth
   const token = request.cookies.get(COOKIE_NAME)?.value;
 
   if (!token) {
-    if (request.nextUrl.pathname.startsWith("/api/settings")) {
+    if (pathname.startsWith("/api/settings")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     return NextResponse.redirect(new URL("/login", request.url));
@@ -25,7 +46,7 @@ export async function middleware(request: NextRequest) {
     response.headers.set("x-user-id", userId);
     return response;
   } catch {
-    if (request.nextUrl.pathname.startsWith("/api/settings")) {
+    if (pathname.startsWith("/api/settings")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     return NextResponse.redirect(new URL("/login", request.url));
@@ -33,5 +54,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/settings/:path*", "/api/settings/:path*"],
+  matcher: ["/settings/:path*", "/api/settings/:path*", "/api/v1/:path*"],
 };
