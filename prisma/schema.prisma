@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EntityType {
+  COUNTY
+  TOWNSHIP
+  CITY
+  VILLAGE
+  SCHOOL_DISTRICT
+  ISD
+  STATE_BOARD
+  SPECIAL_DISTRICT
+  COMMUNITY_COLLEGE
+  UNIVERSITY
+  ROAD_COMMISSION
+  LIBRARY
+}
+
+enum PlatformType {
+  BOARDDOCS
+  LEGISTAR
+  CIVICCLERK
+  CIVICPLUS_AGENDA
+  IQM2
+  GRANICUS
+  CIVICWEB
+  STATIC_HTML
+  UNKNOWN
+}
+
+enum ScrapeStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  ERROR
+  UNREACHABLE
+  UNSUPPORTED_PLATFORM
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  HELD
+  APPROVED
+  CANCELLED
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum DocumentType {
+  BUDGET
+  MASTER_PLAN
+  FOIA_POLICY
+  ANNUAL_REPORT
+  OTHER
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String
+  passwordHash   String
+  role           UserRole  @default(VIEWER)
+  isActive       Boolean   @default(true)
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model County {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  fips       String?  @unique
+  population Int?
+  entities   Entity[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Entity {
+  id              String       @id @default(cuid())
+  name            String
+  slug            String       @unique
+  type            EntityType
+  platform        PlatformType @default(UNKNOWN)
+  countyId        String
+  county          County       @relation(fields: [countyId], references: [id])
+
+  websiteUrl      String?
+  minutesUrl      String?
+  platformCode    String?
+  scrapeConfig    Json?
+
+  scrapeStatus    ScrapeStatus @default(PENDING)
+  lastScrapedAt   DateTime?
+  lastError       String?
+  scrapeFrequency Int          @default(24)
+
+  population      Int?
+  isCharter       Boolean      @default(false)
+
+  publicBoardUrl      String?
+  foiaOfficerName     String?
+  foiaOfficerEmail    String?
+  foiaOfficerPhone    String?
+  foiaOfficerAddress  String?
+
+  meetings        Meeting[]
+  documents       Document[]
+  scrapeRuns      ScrapeRun[]
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([type])
+  @@index([countyId])
+  @@index([platform])
+  @@index([scrapeStatus])
+}
+
+model Meeting {
+  id              String    @id @default(cuid())
+  entityId        String
+  entity          Entity    @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  title           String
+  meetingDate     DateTime
+  committeeName   String?
+  meetingType     String?
+  status          MeetingStatus @default(HELD)
+
+  sourceUrl       String?
+  sourceId        String?
+  pdfUrl          String?
+  pdfStoragePath  String?
+
+  rawHtml         String?
+  plainText       String?
+  minutesHtml     String?
+  minutesText     String?
+  minutesScrapedAt DateTime?
+  ocrApplied      Boolean   @default(false)
+  pageCount       Int?
+
+  scrapedAt       DateTime  @default(now())
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([entityId, sourceId])
+  @@index([entityId])
+  @@index([meetingDate])
+  @@index([entityId, meetingDate])
+  @@index([status, meetingDate])
+  @@index([entityId, status])
+}
+
+model ScrapeRun {
+  id             String    @id @default(cuid())
+  entityId       String
+  entity         Entity    @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  status         String    @default("running")
+  meetingsFound  Int       @default(0)
+  meetingsNew    Int       @default(0)
+  errorMessage   String?
+  durationMs     Int?
+
+  @@index([entityId])
+  @@index([startedAt])
+}
+
+model Document {
+  id              String       @id @default(cuid())
+  entityId        String
+  entity          Entity       @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  title           String
+  type            DocumentType
+  fiscalYear      String?
+  sourceUrl       String?
+  pdfUrl          String?
+  pdfStoragePath  String?
+  plainText       String?
+  pageCount       Int?
+  fileSize        Int?
+
+  scrapedAt       DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([entityId, sourceUrl])
+  @@index([entityId])
+  @@index([type])
+}

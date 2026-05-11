@@ -1,0 +1,61 @@
+services:
+  foia:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3062:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/foia
+      - PDF_STORAGE_DIR=/data/pdfs
+    volumes:
+      - /storage/foia/pdfs:/data/pdfs:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  foia-scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile.scraper
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/foia
+      - STORAGE_DIR=/data/pdfs
+    volumes:
+      - /storage/foia/pdfs:/data/pdfs
+      - scraper_logs:/var/log
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  foia-nginx:
+    image: nginx:alpine
+    ports:
+      - "3061:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - foia
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5499:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  scraper_logs:

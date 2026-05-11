@@ -1,0 +1,22 @@
+PATH=/usr/local/bin:/usr/bin:/bin
+DATABASE_URL=postgresql://postgres:postgres@postgres:5432/foia
+STORAGE_DIR=/data/pdfs
+
+# Continuous scraping: scrape-all loops until every entity is visited, runs every 30 min
+# (scrape-all exits when nothing is left; cron restarts it)
+*/30 * * * * cd /app && flock -n /tmp/scrape.lock python3 -m scraper.main scrape-all --batch-size 50 >> /var/log/scraper.log 2>&1
+
+# Platform discovery weekly (Sunday 2am)
+0 2 * * 0 cd /app && python3 -m scraper.main discover >> /var/log/discover.log 2>&1
+
+# Website discovery weekly (Monday 2am)
+0 2 * * 1 cd /app && python3 -m discover_websites --workers 3 >> /var/log/discover_websites.log 2>&1
+
+# Google discovery weekly (Tuesday 2am)
+0 2 * * 2 cd /app && python3 -m discover_google --delay 5 >> /var/log/discover_google.log 2>&1
+
+# BoardDocs discovery + matching weekly (Wednesday 2am)
+0 2 * * 3 cd /app && python3 -m discover_boarddocs >> /var/log/discover_boarddocs.log 2>&1 && python3 -m match_boarddocs >> /var/log/match_boarddocs.log 2>&1
+
+# Legistar discovery weekly (Thursday 2am)
+0 2 * * 4 cd /app && python3 -m discover_legistar >> /var/log/discover_legistar.log 2>&1

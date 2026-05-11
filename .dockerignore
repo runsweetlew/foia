@@ -1,0 +1,38 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+.env
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Scraper Python artifacts
+scraper/__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+Dockerfile.scraper
+docker-compose.yml
+.dockerignore
+
+# Testing
+coverage
+.nyc_output
